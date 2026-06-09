@@ -138,17 +138,19 @@ def render_nuevo_producto(session: Session, tenant_id: int):
         Category.tipo == "PRODUCTO",
     ).all()
 
+    cat_opts = {c.nombre: c.id for c in categorias}
+    cat_opts["Sin categoría"] = None
+
     with st.form("nuevo_producto"):
         col1, col2 = st.columns(2)
         with col1:
             codigo = st.text_input("Código", placeholder="Opcional")
             nombre = st.text_input("Nombre *", placeholder="Nombre del producto")
-            categoria_id = st.selectbox(
+            categoria_nombre = st.selectbox(
                 "Categoría",
-                options=[c.id for c in categorias],
-                format_func=lambda x: next((c.nombre for c in categorias if c.id == x), "Sin categoría"),
-                placeholder="Seleccionar categoría",
+                options=list(cat_opts.keys()),
             )
+            categoria_id = cat_opts[categoria_nombre]
             precio_compra = st.number_input("Precio de Compra", min_value=0.0, format="%.2f")
         with col2:
             precio_venta = st.number_input("Precio de Venta", min_value=0.0, format="%.2f")
