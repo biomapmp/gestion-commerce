@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: gestion-commerce
+    runtime: image
+    repo: https://github.com/Martincano/gestion-commerce
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SECRET_KEY
+        generateValue: true
+    healthCheckPath: /_stcore/health
+    domains:
+      - gestion-commerce.onrender.com
