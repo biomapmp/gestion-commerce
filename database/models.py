@@ -179,6 +179,7 @@ class Sale(Base):
     total = Column(Numeric(12, 2), default=0)
     forma_pago = Column(String(50), default="EFECTIVO")
     observaciones = Column(Text, default="")
+    anulada = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tenant = relationship("Tenant", back_populates="sales")

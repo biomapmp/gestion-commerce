@@ -15,6 +15,39 @@ from utils.charts import ventas_diarias_chart, grafico_torta
 from auth.auth import get_current_user
 
 
+def anular_venta(session: Session, venta: Sale) -> bool:
+    try:
+        venta.anulada = True
+
+        for item in venta.items:
+            producto = session.query(Product).filter_by(id=item.product_id).first()
+            if producto:
+                nuevo_stock = float(producto.stock_actual) + float(item.cantidad)
+                movimiento = StockMovement(
+                    product_id=producto.id,
+                    tipo=TipoMovimientoStock.ENTRADA,
+                    cantidad=item.cantidad,
+                    stock_resultante=parse_decimal(nuevo_stock),
+                    motivo=f"Anulación Venta #{venta.id}",
+                    referencia_id=venta.id,
+                )
+                session.add(movimiento)
+                producto.stock_actual = parse_decimal(nuevo_stock)
+
+        flujo = session.query(CashFlow).filter_by(
+            referencia_id=venta.id, referencia_tipo="VENTA"
+        ).first()
+        if flujo:
+            session.delete(flujo)
+
+        session.commit()
+        return True
+    except Exception as e:
+        session.rollback()
+        st.error(f"Error al anular venta: {e}")
+        return False
+
+
 def render(session: Session):
     user = get_current_user()
     tenant_id = user["tenant_id"]
@@ -32,21 +65,21 @@ def render(session: Session):
 
 
 def render_historial(session: Session, tenant_id: int):
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
         desde = st.date_input("Desde", value=today() - timedelta(days=30))
     with col2:
         hasta = st.date_input("Hasta", value=today())
+    with col3:
+        mostrar_anuladas = st.checkbox("Mostrar anuladas", value=False)
 
-    ventas = (
-        session.query(Sale)
-        .filter(
-            Sale.tenant_id == tenant_id,
-            Sale.fecha.between(desde, hasta),
-        )
-        .order_by(Sale.fecha.desc(), Sale.created_at.desc())
-        .all()
+    query = session.query(Sale).filter(
+        Sale.tenant_id == tenant_id,
+        Sale.fecha.between(desde, hasta),
     )
+    if not mostrar_anuladas:
+        query = query.filter(Sale.anulada == False)
+    ventas = query.order_by(Sale.fecha.desc(), Sale.created_at.desc()).all()
 
     if not ventas:
         st.info("No hay ventas en este período")
@@ -69,6 +102,7 @@ def render_historial(session: Session, tenant_id: int):
             "IVA": formato_moneda(v.iva),
             "Total": formato_moneda(v.total),
             "Pago": v.forma_pago,
+            "Estado": "🚫 ANULADA" if v.anulada else "✅ OK",
         })
 
     df = pd.DataFrame(data)
@@ -95,6 +129,14 @@ def render_historial(session: Session, tenant_id: int):
                     st.write(f"**N° Comprobante:** {venta.numero_comprobante}")
 
                 st.write("**Items:**")
+                if venta.anulada:
+                    st.error("🚫 **VENTA ANULADA**")
+                else:
+                    if st.button("🚫 Anular Venta", type="primary", use_container_width=True):
+                        if anular_venta(session, venta):
+                            st.success("✅ Venta anulada correctamente. Stock y flujo de caja revertidos.")
+                            st.rerun()
+
                 items_data = [
                     {
                         "Descripción": i.descripcion,
@@ -269,6 +311,7 @@ def render_reportes(session: Session, tenant_id: int):
         session.query(Sale)
         .filter(
             Sale.tenant_id == tenant_id,
+            Sale.anulada == False,
             Sale.fecha.between(reporte_desde, reporte_hasta),
         )
         .all()
