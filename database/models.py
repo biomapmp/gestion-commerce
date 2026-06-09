@@ -63,8 +63,8 @@ class Tenant(Base):
     cash_flow = relationship("CashFlow", back_populates="tenant", cascade="all, delete-orphan")
     accounting_entries = relationship("AccountingEntry", back_populates="tenant", cascade="all, delete-orphan")
     expenses = relationship("Expense", back_populates="tenant", cascade="all, delete-orphan")
-    tiendanube_configs = relationship("TiendanubeConfig", backref="tenant", cascade="all, delete-orphan")
-    tiendanube_sync_logs = relationship("TiendanubeSyncLog", backref="tenant", cascade="all, delete-orphan")
+    tiendanube_configs = relationship("TiendanubeConfig", back_populates="tenant_rel", cascade="all, delete-orphan")
+    tiendanube_sync_logs = relationship("TiendanubeSyncLog", back_populates="tenant_rel", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -264,7 +264,7 @@ class TiendanubeConfig(Base):
     webhook_secret = Column(String(100), default="")
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    tenant = relationship("Tenant", backref="tiendanube_configs")
+    tenant_rel = relationship("Tenant", back_populates="tiendanube_configs")
 
 
 class TiendanubeSyncLog(Base):
@@ -272,6 +272,7 @@ class TiendanubeSyncLog(Base):
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    tenant_rel = relationship("Tenant", back_populates="tiendanube_sync_logs")
     tipo = Column(String(50), nullable=False)
     estado = Column(String(20), default="PENDIENTE")
     productos_descargados = Column(Integer, default=0)
