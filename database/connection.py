@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 from config import DATABASE_URL
@@ -29,3 +29,12 @@ def get_session():
 def init_db():
     from database.models import Base
     Base.metadata.create_all(bind=engine)
+
+    _run_migrations()
+
+
+def _run_migrations():
+    columns = {c["name"] for c in inspect(engine).get_columns("sales")}
+    if "anulada" not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE sales ADD COLUMN anulada BOOLEAN DEFAULT 0"))
