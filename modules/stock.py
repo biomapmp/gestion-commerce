@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from database.models import Product, Category, StockMovement, TipoMovimientoStock
+from database.models import Product, Category, StockMovement, TipoMovimientoStock, SaleItem, TiendanubeProductMap
 from utils.helpers import formato_moneda, formato_fecha_corta, parse_decimal
 from auth.auth import get_current_user
 
@@ -129,6 +129,18 @@ def render_productos(session: Session, tenant_id: int):
                             producto.descripcion = descripcion
                             session.commit()
                             st.success("Producto actualizado")
+                            st.rerun()
+
+                    st.markdown("---")
+                    st.markdown("### 🗑️ Zona de Peligro")
+                    confirmar = st.checkbox(f"Confirmar eliminación de **{producto.nombre}**", key=f"del_confirm_{producto.id}")
+                    if confirmar:
+                        if st.button("🗑️ Eliminar Producto", type="primary", use_container_width=True):
+                            session.query(TiendanubeProductMap).filter_by(product_id=producto.id).delete()
+                            session.query(SaleItem).filter(SaleItem.product_id == producto.id).update({"product_id": None})
+                            session.delete(producto)
+                            session.commit()
+                            st.success("Producto eliminado")
                             st.rerun()
 
 
